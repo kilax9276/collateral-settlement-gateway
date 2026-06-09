@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Collateral Settlement Gateway Operator Console</title>
+    <link rel="stylesheet" href="/dashboard/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Operator Console · Collateral Settlement Gateway</p>
+        <h1>Gateway operations, audit and reconciliation</h1>
+        <p>
+          Monitor Vault accounting, signed intents, settlements, indexed chain
+          events and reconciliation. The trading module remains a reference
+          example; the demo walkthrough is clearly separated from the product
+          API.
+        </p>
+      </div>
+      <div class="hero-card">
+        <span id="connectionStatus" class="status-pill">Connecting...</span>
+        <small>WebSocket event feed</small>
+        <label class="token-field">
+          Admin token
+          <input id="adminTokenInput" type="password" autocomplete="off" />
+        </label>
+        <button id="saveAdminToken" class="secondary">Save token</button>
+      </div>
+    </header>
+
+    <main>
+      <nav class="tabs" aria-label="Operator Console sections">
+        <button class="tab active" data-tab="overview">Gateway Overview</button>
+        <button class="tab" data-tab="settlementAudit">Settlement Audit</button>
+        <button class="tab" data-tab="reconciliation">Reconciliation</button>
+        <button class="tab" data-tab="trading">Trading Example</button>
+        <button class="tab" data-tab="demo">Demo Walkthrough</button>
+      </nav>
+
+      <section id="overview" class="tab-panel active">
+        <section class="grid cards">
+          <article class="card wide">
+            <h2>Infrastructure</h2>
+            <dl>
+              <dt>Chain ID</dt>
+              <dd id="chainId">—</dd>
+              <dt>Vault address</dt>
+              <dd id="vaultAddress">—</dd>
+              <dt>Operator address</dt>
+              <dd id="operatorAddress">—</dd>
+              <dt>Indexer status</dt>
+              <dd id="indexerStatus">—</dd>
+              <dt>Last processed block</dt>
+              <dd id="lastProcessedBlock">—</dd>
+              <dt>Indexer lag</dt>
+              <dd id="indexerLagBlocks">—</dd>
+              <dt>Storage</dt>
+              <dd id="storageStatus">—</dd>
+            </dl>
+          </article>
+          <article class="card wide">
+            <h2>Reconciliation summary</h2>
+            <div class="summary-row">
+              <span class="status-pill connected"
+                >OK <strong id="reconOk">0</strong></span
+              >
+              <span class="status-pill warning"
+                >WARNING <strong id="reconWarning">0</strong></span
+              >
+              <span class="status-pill error"
+                >MISMATCH <strong id="reconMismatch">0</strong></span
+              >
+            </div>
+            <p class="hint">
+              Reconciliation compares backend ledger state with the on-chain
+              Vault where contract metadata is available.
+            </p>
+          </article>
+        </section>
+
+        <section class="grid metrics">
+          <article class="metric">
+            <span>Insurance fund</span><strong id="insuranceBalance">—</strong>
+          </article>
+          <article class="metric">
+            <span>Total liabilities</span
+            ><strong id="totalLiabilities">—</strong>
+          </article>
+          <article class="metric">
+            <span>Total user collateral</span
+            ><strong id="totalUserCollateral">—</strong>
+          </article>
+          <article class="metric">
+            <span>Total users</span><strong id="totalUsers">—</strong>
+          </article>
+          <article class="metric">
+            <span>Pending withdrawals</span
+            ><strong id="pendingWithdrawalsCount">—</strong>
+          </article>
+          <article class="metric">
+            <span>Pending settlements</span
+            ><strong id="pendingSettlementsCount">—</strong>
+          </article>
+          <article class="metric">
+            <span>Open positions</span
+            ><strong id="openPositionsCount">—</strong>
+          </article>
+        </section>
+
+        <section class="grid three-columns">
+          <article class="card">
+            <h2>Recent settlements</h2>
+            <div id="recentSettlements" class="list compact-list">—</div>
+          </article>
+          <article class="card">
+            <h2>Recent signed intents</h2>
+            <div id="recentIntents" class="list compact-list">—</div>
+          </article>
+          <article class="card">
+            <h2>Recent chain events</h2>
+            <div id="recentEvents" class="list compact-list">—</div>
+          </article>
+        </section>
+
+        <section class="grid two-columns">
+          <article class="card">
+            <h2>Pending withdrawals</h2>
+            <div id="pendingWithdrawalsList" class="list compact-list">—</div>
+          </article>
+          <article class="card">
+            <h2>Pending settlements</h2>
+            <div id="pendingSettlementsList" class="list compact-list">—</div>
+          </article>
+        </section>
+      </section>
+
+      <section id="settlementAudit" class="tab-panel">
+        <article class="card">
+          <h2>Settlement Audit</h2>
+          <p class="hint">
+            Lookup a settlement report and verify the chain: on-chain event ←
+            settlementId/reasonHash ← off-chain calculation ← signed intents.
+          </p>
+          <div class="form-row">
+            <input id="settlementIdInput" placeholder="0x... settlementId" />
+            <button id="loadSettlementReport">Load report</button>
+          </div>
+          <pre id="settlementReport" class="output">No settlement loaded.</pre>
+        </article>
+      </section>
+
+      <section id="reconciliation" class="tab-panel">
+        <article class="card">
+          <h2>User reconciliation</h2>
+          <p class="hint">
+            Compare one user's on-chain Vault state with the backend ledger,
+            pending withdrawals, pending P&amp;L and open positions.
+          </p>
+          <div class="form-row">
+            <input
+              id="reconciliationAddressInput"
+              placeholder="0x... user address"
+            />
+            <button id="loadReconciliation">Run reconciliation</button>
+          </div>
+          <div id="reconciliationStatus" class="summary-row"></div>
+          <pre id="reconciliationReport" class="output">No user loaded.</pre>
+        </article>
+      </section>
+
+      <section id="trading" class="tab-panel">
+        <section class="grid two-columns">
+          <article class="card">
+            <h2>Trading Example</h2>
+            <p class="hint">
+              Reference example only. Orders execute off-chain; collateral and
+              settlement remain gateway concerns.
+            </p>
+            <dl>
+              <dt>BTC-USD price</dt>
+              <dd id="btcPrice">—</dd>
+              <dt>Selected user</dt>
+              <dd>
+                <input id="tradingUserInput" placeholder="0x... user address" />
+              </dd>
+            </dl>
+            <div class="form-row">
+              <select id="orderSide">
+                <option value="BUY">BUY</option>
+                <option value="SELL">SELL</option>
+              </select>
+              <input
+                id="orderQuantity"
+                type="number"
+                step="0.001"
+                min="0"
+                value="0.01"
+              />
+              <button id="submitReferenceOrder">Submit reference order</button>
+            </div>
+            <p class="hint small-hint">
+              Browser wallets are not wired into this static console yet. This
+              panel shows state and validates the operator UI shape; order
+              submission still uses the signed-intent API or demo walkthrough.
+            </p>
+          </article>
+          <article class="card">
+            <h2>Position and P&amp;L</h2>
+            <button id="loadTradingPortfolio">Load portfolio</button>
+            <pre id="tradingPortfolio" class="output">No portfolio loaded.</pre>
+          </article>
+        </section>
+      </section>
+
+      <section id="demo" class="tab-panel">
+        <section class="grid two-columns">
+          <article class="card warning-card">
+            <h2>Demo Walkthrough</h2>
+            <p class="hint">
+              DEMO ONLY. These buttons call /demo/* routes, which exist only
+              when ENABLE_DEMO_ROUTES=true and require the admin token.
+            </p>
+            <div class="actions">
+              <button data-action="mint">1. Mint demo USDC</button>
+              <button data-action="approve">2. Approve Vault</button>
+              <button data-action="deposit">3. Deposit</button>
+              <button data-action="open-long">4. Open Long</button>
+              <button data-action="move-price">5. Move Price Up</button>
+              <button data-action="close-position">6. Close Position</button>
+              <button data-action="settle">7. Settle P&amp;L</button>
+              <button data-action="request-withdraw">
+                8. Request Withdraw
+              </button>
+              <button data-action="approve-withdraw">
+                9. Approve Withdraw
+              </button>
+              <button data-action="withdraw">10. Withdraw</button>
+            </div>
+            <pre id="lastAction" class="output">Ready.</pre>
+          </article>
+          <article class="card">
+            <h2>Demo state</h2>
+            <button id="loadDemoState">Refresh demo state</button>
+            <pre id="demoState" class="output">Demo state not loaded.</pre>
+          </article>
+        </section>
+      </section>
+
+      <section class="card events-card">
+        <h2>Realtime event feed</h2>
+        <div id="eventFeed" class="event-feed"></div>
+      </section>
+    </main>
+
+    <script type="module" src="/dashboard/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,108 @@
+services:
+  hardhat-node:
+    build: .
+    command: npm run local:chain
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8545',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',method:'eth_chainId',params:[],id:1})}).then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  deployer:
+    build: .
+    command: sh -c "npm run wait:rpc && npm run local:deploy"
+    depends_on:
+      hardhat-node:
+        condition: service_healthy
+    environment:
+      RPC_URL: http://hardhat-node:8545
+      CHAIN_ID: 31337
+      CONTRACTS_FILE: /app/backend/src/generated/contracts.json
+      OPERATOR_PRIVATE_KEY: ${OPERATOR_PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}
+    volumes:
+      - contracts-data:/app/backend/src/generated
+    restart: "no"
+
+  backend:
+    build: .
+    command: npm run local:backend
+    depends_on:
+      deployer:
+        condition: service_completed_successfully
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      HOST: 0.0.0.0
+      RPC_URL: http://hardhat-node:8545
+      CHAIN_ID: 31337
+      INDEXER_ENABLED: "true"
+      ENABLE_DEMO_ROUTES: "true"
+      INDEXER_POLL_INTERVAL_MS: 1000
+      CONTRACTS_FILE: /app/backend/src/generated/contracts.json
+      STORAGE_DRIVER: sqlite
+      SQLITE_PATH: /app/backend/data/app.db
+      MARKET_DATA_PROVIDER: mock
+      OPERATOR_PRIVATE_KEY: ${OPERATOR_PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}
+      ALICE_PRIVATE_KEY: ${ALICE_PRIVATE_KEY:-}
+      GATEWAY_ADMIN_TOKEN: ${GATEWAY_ADMIN_TOKEN:-change-me-admin-token}
+      REGISTERED_APPS: ${REGISTERED_APPS:-trading-example:change-me-trading-secret,fantasy-trading-app:change-me-external-secret}
+      DEFAULT_SYMBOL: BTC-USD
+      DEFAULT_BTC_PRICE: 65000
+      MAX_LEVERAGE: 5
+      MAX_POSITION_NOTIONAL: 100000
+      MIN_COLLATERAL: 0
+      MAX_PRICE_AGE_MS: 60000
+      SUPPORTED_SYMBOLS: BTC-USD
+      TAKER_FEE_BPS: 5
+      QUOTE_TICK_MS: 1000
+    volumes:
+      - contracts-data:/app/backend/src/generated
+      - sqlite-data:/app/backend/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  frontend:
+    build: .
+    command: npm run local:frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "5173:5173"
+    environment:
+      FRONTEND_HOST: 0.0.0.0
+      FRONTEND_PORT: 5173
+      BACKEND_URL: http://backend:3000
+
+  demo-setup:
+    build: .
+    command: npm run demo:prepare
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: http://backend:3000
+      DEMO_WAIT_TIMEOUT_MS: 60000
+    restart: "no"
+
+volumes:
+  sqlite-data:
+  contracts-data:

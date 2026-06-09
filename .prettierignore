@@ -1,0 +1,10 @@
+node_modules/
+dist/
+artifacts/
+cache/
+coverage/
+backend/data/
+package-lock.json
+backend/src/generated/contracts.json
+backend/src/generated/contracts.*.json
+!backend/src/generated/contracts.example.json
